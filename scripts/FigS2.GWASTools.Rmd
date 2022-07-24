@@ -1,0 +1,230 @@
+---
+title: "leaftype_gwas"
+author: "chiteri"
+date: "5/19/2022"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+#set working directory for all code chunks
+```
+
+```{r}
+#if not installed, please install
+library(tidyverse)
+library(GWASTools)
+library(GENESIS)
+```
+
+```{r}
+getwd()
+#Numerical snps
+#This might not be available
+snp = read.table(unzip("./data/gwas/sven/SNP_imputed_G85.maf0.01_PI462_numerical.txt.zip", "SNP_imputed_G85.maf0.01_PI462_numerical.txt" ),skip=1,header=T)
+names(snp)[1] <- "line" #rename
+#transpose data to have snps as rows for the numerical genotype
+snp1 <- t(snp)
+
+#change rownames
+snp1 <- as.data.frame(snp1) #convert to dataframe first
+snp1 <- tibble::rownames_to_column(snp1, var = "line") #rename rownames
+names(snp1) <- snp1[1,] #make first row as column head
+snp1 <- snp1[-1,]#delete column
+
+names(snp1)[1] <- "snpID"
+
+snp2 <- lapply(snp1[,2:ncol(snp1)], as.numeric)
+snpid <- data.frame(snpID = snp1$snpID ) #make df
+
+snp2 <- cbind(snpid, snp2)
+
+snp3 <- snp2 %>% separate(col=snpID, into = c("x", "SNP"), sep = "X")
+snp3 <- snp3[,2:ncol(snp3)]
+
+#snp4 <- snp4 %>% separate(col = line, into=c("x", "line"), sep="X")
+#snp4 <- snp4[,-1]
+
+###genotype data with alleles
+
+snp5 <- read.table("./data/gwas/leaf_blup_tassel _genotype.txt", header = T)
+snp6 <- snp5 %>% separate(col = alleles, into = c("Allele1", "Allele2"), sep = "/")
+snp7 <- snp6[,c(1,2,3,4,5)]
+
+
+#combine dataframe of snps
+snps <- left_join(snp7, snp3, by = c("rs."="SNP"))
+names(snps)[1] <- "line"
+
+
+##load PCs and Kinship
+#read kinship matrix and edit according to gapit format imported from tassel
+myKIm <- read.table("./data/gwas/gapit/kinship_matrix.txt", head = F)
+names(myKIm) <- myKIm[1,]
+myKIm <- myKIm[-1,]
+names(myKIm)[1] <- "line"
+myKIm[, 2:ncol(myKIm)] <- lapply(myKIm[, 2:ncol(myKIm)], as.numeric) #make all columns numeric
+myKIm <- as.matrix(myKIm)
+
+#read the PCA imported from tassel
+myCVm <- read.table("./data/gwas/gapit/PCAs.txt", head = TRUE)#
+
+
+# Load the BLUPs
+Y = read.table("./tables/leaf_blup_tassel _phenotype.txt", skip = 2, header = T)
+names(Y)[1] <- "line"
+YY <- Y %>% select(line, leaftype)
+
+##combine BLUPs with PCs
+pheno <- left_join(YY, myCVm, by = c("line" = "Taxa"))
+pheno$leaftype <- as.numeric(pheno$leaftype)
+
+
+```
+
+
+
+```{r}
+###Using GENESIS
+#http://bioconductor.jp/packages/3.7/bioc/vignettes/GENESIS/inst/doc/assoc_test.html
+
+##geno
+#create a list of integer for genotype
+#snps
+snps_int <- as.integer(seq(from=1, length.out = 26550))
+snpID <- snps_int #use for snps
+
+snps_INT <- snps %>% add_column(
+  snp_int <- snps_int, 
+  .after = "line")
+names(snps_INT)[2] <- "snp_int"
+
+#lines
+lines <- names(snps_INT[-c(1:6)])
+lines_int <- as.integer(seq(from=101, length.out = 458))
+
+lines_df <- data.frame(line = lines,
+                       line_int = lines_int)
+scanID <- lines_int #use this for scan id
+
+
+chromosome <- snps$chrom #chromosome
+position <- snps$pos #position
+
+#genotype- matrix
+
+geno_mat <- snps_INT[, -c(1:6)]
+names(geno_mat) <- NULL
+geno_mat <- as.matrix(geno_mat)
+
+#R Matrix for genotype data
+geno <- MatrixGenotypeReader(genotype = geno_mat, 
+                             snpID = snpID,
+                             chromosome = chromosome,
+                             position = position,
+                             scanID = scanID)
+genoData <- GenotypeData(geno)
+
+###########phenotype data######################
+pheno2 <- pheno %>% add_column(scanID = lines_int,
+                               .before = "line")
+rownames(pheno2) <- pheno2$scanID
+
+scanAnnot  <- ScanAnnotationDataFrame(pheno2)
+
+###############Kinship matrix
+myKIm2 <- as.data.frame(myKIm)
+myKIm2$line <- lines_int
+names(myKIm2)[2:ncol(myKIm2)] <- lines_int
+rownames(myKIm2) <- myKIm2$line
+myKIm2 <- myKIm2[,-1]
+myKIm2 <- as.matrix(myKIm2)
+
+#use as kinship - myKIm2
+
+
+###conducting gwas
+#Step1: fit null model...null hypothesis...each snp has not effect hence not fit in the model
+
+nullmod <- fitNullModel(scanAnnot, outcome = "leaftype",
+                        covars = "PC1", cov.mat = myKIm2,
+                        family = binomial)
+#sort the cov.mat problem
+#Step 2: Run SNP-Phenotype Association Tests
+
+#generate SNP to read at a time - 5000
+genoIterator <- GenotypeBlockIterator(genoData, snpBlock=5000)
+
+#the gwas
+assoc <- assocTestSingle(genoIterator, null.model = nullmod)
+
+```
+
+```{r}
+#plotting / visualizing
+
+# qqPlot(assoc$Score.pval)
+# 
+# manhattanPlot(assoc$Score.pval, 
+#               chromosome = assoc$chr,
+#               signif=1e-5)
+```
+
+
+
+
+
+
+```{r}
+###using GWASTools
+#https://rpubs.com/karlkeat/gwastools
+# Load the data
+
+genotype_data <- GenotypeData(geno, scanAnnot=scanAnnot) 
+
+# Outputs a dataframe containing regression statistics, SNP association p-values, and more
+results <- assocRegression(genotype_data, 
+                           outcome="leaftype", 
+                           model.type="logistic",
+                           covar = c("PC1", "PC2", "PC3", "PC4"))
+
+```
+
+```{r}
+#visualizing
+# Start with results from an association test
+
+pvals <- results$Wald.pval # Extract the list of SNP p-values
+chromosome <- results$chr # Extract the chromosome corresponding to each SNP
+
+
+tiff("./figures/gwas/gwas_85_0.01/leaftype_regression.tiff", width = 12, height = 5, units = "in",res = 300, main = "Logistic mixed model")
+par(mfrow = c(1,2))
+manhattanPlot(pvals, chromosome,signif=1e-5)
+qqPlot(pvals)
+dev.off()
+
+
+```
+
+```{r}
+library(qqman)
+results2 <- snps_INT %>% select(line, snp_int, pos) %>% 
+  left_join(results, by=c("snp_int" = "snpID"))
+
+
+tiff("./figures/gwas/gwas_85_0.01/leaftype_regression.tiff", width = 12, height = 5, units = "in",res = 300)
+par(mfrow = c(1,2))
+manhattan(results2, chr = "chr", bp= "pos", 
+          p="Wald.pval",snp = "snp_int",
+          col=c("black","#0072B2"),cex=1 , 
+          main = "leaftype",
+          genomewideline =  F, ylim = c(0,8)) 
+
+qq(results2$Wald.pval)
+dev.off()
+```
+

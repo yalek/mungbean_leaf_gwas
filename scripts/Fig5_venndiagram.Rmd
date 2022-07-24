@@ -1,0 +1,69 @@
+---
+title: "venndiagram"
+author: "chiteri"
+date: "5/29/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+#set working directory for all code chunks
+```
+
+#gives you data frames that have genotype data based on the phenotype data provided.
+#can use for input into tassel
+
+```{r}
+library(tidyverse)
+library(ggVennDiagram)
+library(ggpubr)
+```
+
+
+```{r}
+###read the data
+
+snp_data <- readxl::read_xlsx("./tables/No_signi_SNPS_across_models.xlsx", sheet = "all_snps")
+
+
+method_list <- list(
+  TaSSEL = snp_data$TASSEL,
+  GAPIT_MLM = snp_data$GAPIT_MLM,
+  GAPIT_FarmCPU = snp_data$GAPIT_FarmCPU,
+  SVEN = snp_data$SVEN_0.1
+)
+
+
+
+all <- ggVennDiagram(method_list)
+
+
+####single locus
+single_list <- list(
+  TaSSEL = snp_data$TASSEL,
+  GAPIT_MLM = snp_data$GAPIT_MLM
+)
+
+single <- ggVennDiagram(single_list)
+
+###multilocus
+
+multi_list <- list(
+  GAPIT_FarmCPU = snp_data$GAPIT_FarmCPU,
+  SVEN = snp_data$SVEN_0.1
+)
+
+multi <- ggVennDiagram(multi_list)
+
+
+
+tiff("./figures/gwas/gwas_85_0.01/Fig8_venn_diagram.tiff", 
+         width = 14, height = 10, units = "in", res = 300)
+ggarrange(all,
+          ggarrange(single, multi, nrow = 1, ncol = 2, labels = c("B", "C")),
+          nrow = 2, ncol = 1, labels = c("A"))
+dev.off()
+```
+

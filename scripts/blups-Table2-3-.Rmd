@@ -1,0 +1,158 @@
+---
+title: "blups"
+author: "chiteri"
+date: "5/14/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+## R Markdown
+##libraries
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+library(ggpubr)
+library(inti)
+library(lme4)
+```
+
+##check working directory
+```{r}
+getwd()
+#list.dirs(".")
+```
+
+```{r}
+#read data
+leaf_df <- read.csv("./raw_leaves_df_combined.csv")
+
+#head(leaf_df)
+length(unique(leaf_df$line))
+
+##set as factors
+cols <- c("loc", "year", "bloc", "line")
+
+leaf_df[cols] <- lapply(leaf_df[cols], as.factor)
+
+###add total leaflet area
+
+```
+
+
+
+##loop to extract blups for all 
+```{r}
+start_time <- Sys.time()
+#create final blups dataframe
+line <- unique(leaf_df$line)
+final_data <- data.frame(line)
+
+##Final descriptive table
+descriptive_stats <- data.frame(character(0), 
+                                numeric(0), 
+                                numeric(0),
+                                numeric(0),
+                                numeric(0),
+                                numeric(0),
+                                numeric(0),
+                                numeric(0),stringsAsFactors=FALSE)
+  #assign column names
+colnames(descriptive_stats) <- c("Trait","Mean","Median","Min","Max","SD","CV","H2.cullis")
+
+#create the anova sort of table
+grp <- c("line:year", "line", "loc", "year", "Residual" )
+variance_table <- data.frame(grp)
+
+
+
+##list of traits
+traits <- colnames(leaf_df)[7:ncol(leaf_df)]
+
+##loop through the traits
+
+t =1 
+for(t in 1:length(traits)){
+ 
+    trait = traits[t]
+  
+    hr <- H2cal(data = leaf_df,
+            trait = trait,
+            gen.name = "line",
+            rep.n = 4,
+            env.n = 3,
+            year.n=2,
+            env.name = unique(leaf_df$loc),
+            year.name = unique(leaf_df$year),
+            random.model = "1 + (1|loc) + (1|year) + (1|line)",
+            fixed.model = "0 + (1|loc) + (1|year) + line",
+            emmeans = FALSE,
+            plot_diag = FALSE,
+            outliers.rm = TRUE)
+    
+    ####### blups
+    blup <- hr$blups
+    
+    #add blups to table
+    final_data <- merge(final_data, blup, by = "line")
+    
+
+     ###########descriptive
+     Mn <- mean(as.numeric(unlist(blup[,2])))#mean
+     Md <- median(as.numeric(unlist(blup[,2])))
+     Min <- min(as.numeric(unlist(blup[,2])))
+     Max <- max(as.numeric(unlist(blup[,2])))
+     Sd <- sd(as.numeric(unlist(blup[,2])))
+     CV <- Sd/Mn
+     H2.cullis <- hr$tabsmr$H2.c
+     
+     #create a vector with variables
+     to_add <- c(trait,Mn,Md,Min,Max, Sd, CV, H2.cullis)
+     #add to the df
+     descriptive_stats <- descriptive_stats %>% add_row(Trait = trait,
+                                                   Mean = Mn,
+                                                   Median = Md,
+                                                   Min = Min,
+                                                   Max = Max,
+                                                   SD = Sd,
+                                                   CV = CV,
+                                                   H2.cullis = H2.cullis)
+
+     
+       #descriptive
+    descriptive_stats[, -1] <- round(descriptive_stats[, -1], 2)#apply to whole table
+    
+    ############## variance components
+    y <- as.data.frame(VarCorr(hr$model)) #extract variance components as a table
+
+    #extract variance components (column 1, 4 and round to 2 d.p)
+    y1 <- y[, c(1,4)] %>% mutate_if(is.numeric, ~round(., 2))
+    y1$percent <- (y1[,2]/ sum(y1$vcov)*100)  #new column with %
+
+    y1$percent <- round(y1$percent, 0) #round off to o d.p.
+
+    names(y1)[2]<-paste0(trait,"_var")
+    
+    
+    variance_table <- merge(variance_table, y1, by='grp')
+    
+    print(paste0("Done with: ", trait))
+}
+
+#get sum of variance table components
+###add totals row
+row_totals <- colSums(variance_table[,2:ncol(variance_table)])
+variance_table[nrow(variance_table) + 1, ] <- c(a = "Totals", as.list(row_totals))
+
+#save
+write.csv(final_data,"./tables/blups.csv" , row.names = F)
+write.csv( descriptive_stats, "./tables/summary_table_2.csv", row.names = F)
+write.csv(variance_table, "./tables/variance_table_table_3.csv", row.names = F)
+
+end_time <- Sys.time()
+print(paste0("This code took long: ", end_time-start_time))
+```
+

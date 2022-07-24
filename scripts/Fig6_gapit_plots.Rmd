@@ -1,0 +1,147 @@
+---
+title: "gapit_plots"
+author: "chiteri"
+date: "5/24/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = normalizePath(".."))
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+#gives you data frames that have genotype data based on the phenotype data provided.
+#can use for input into tassel
+
+```{r}
+library(tidyverse)
+library(qqman)
+library(CMplot)
+library(ggpubr)
+```
+
+
+```{r}
+#plot your manhattan plots
+##subset datasets
+#read data
+
+final_data <- read.csv("./tables/GAPIT_FarmCPU_GWAS_results.csv", header = T)
+
+
+
+
+#unique(final_data$Trait)
+
+left_traits <- final_data %>% filter(grepl("l_", Trait)) 
+terminal_traits <- final_data %>% filter(grepl("t_", Trait)) 
+right_traits <- final_data %>% filter(grepl("r_", Trait)) 
+leaf_type <- final_data %>% filter(grepl("leaf_type", Trait))
+
+##create a list for the datasets
+dfs <- list(left = left_traits, 
+            terminal = terminal_traits, 
+            right = right_traits, 
+            type = leaf_type)
+
+for(d in 1:length(dfs)) {
+  
+  current_df <- dfs[[d]]
+  current_df_name <- names(dfs)[d]
+  
+  #print(names(dfs)[4])
+  
+  if(current_df_name == names(dfs)[4]){
+        
+    i <- unique(current_df$Trait)
+    
+    tiff(paste0("./figures/gwas/gwas_85_0.01/gapit/combined/man_qq_",
+         current_df_name,".tiff"), 
+         width = 17, height = 5, units = "in", res = 300)
+      ##grid
+      #use length of Traits
+      par(mfrow = c(1,2),mar = c(5.1,5.1,1,1), 
+          cex.lab = 1.5, cex.main = 1.5, cex.axis = 1.5)
+      manhattan(current_df, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),
+              cex=2 , main =i, genomewideline =  F,
+              highlight = snpsOfInterest) #manhattan plots
+      qq(current_df$P.value)
+      dev.off()
+    
+    
+    ###############
+   # print("I passed here")
+    
+
+    }
+   else {
+    #print("I skipped to here")
+    
+    Traits <- unique(current_df$Trait)
+    
+    tiff(paste0("./figures/gwas/gwas_85_0.01/gapit/combined/man_qq_",current_df_name,".tiff"), 
+         width = 17, height = 15, units = "in", res = 300)
+    
+    par(mfrow = c(6,2), mar = c(5.1,5.1,1,1), cex = 1)
+  
+    #trait 1
+    trait <- current_df %>% filter(Trait == Traits[1])
+    manhattan(trait, chr="Chromosome", bp="Position",
+              p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),
+              cex=2 , main = Traits[1],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$P.value, xlab = "") #qqplots 
+    
+    #trait 2
+    trait <- current_df %>% filter(Trait == Traits[2])
+    manhattan(trait, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),cex=2 , main = Traits[2],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$P.value, xlab = "") #qqplots    
+    
+    
+    #trait 3
+    trait <- current_df %>% filter(Trait == Traits[3])
+    manhattan(trait, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),cex=2 , main = Traits[3],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$P.value, xlab = "") #qqplots       
+    
+    #trait 4
+    trait <- current_df %>% filter(Trait == Traits[4])
+    manhattan(trait, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),cex=2 , main = Traits[4],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$P.value, xlab = "") #qqplots     
+    
+    #trait 5
+    trait <- current_df %>% filter(Trait == Traits[5])
+    manhattan(trait, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),cex=2 , main = Traits[5],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$P.value, xlab = "") #qqplots     
+    
+    #trait 6
+    trait <- current_df %>% filter(Trait == Traits[6])
+    manhattan(trait, chr="Chromosome", bp="Position", p="P.value", snp = "SNP",
+              col=c("black","#0072B2"),cex=2 , main = Traits[6],
+              genomewideline =  F, highlight = snpsOfInterest) #manhattan plots
+
+    qq(trait$P.value) #qqplots      
+    
+    dev.off()
+
+  }
+}
+
+```
+

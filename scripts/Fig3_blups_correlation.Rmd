@@ -1,0 +1,127 @@
+---
+title: "blups_explore"
+author: "chiteri"
+date: "5/15/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+## R Markdown
+##libraries
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+library(ggpubr)
+library(GGally)
+library(corrplot)
+library(ggcorrplot)
+library(grid)
+```
+
+##check working directory and read data
+```{r}
+getwd()
+#list.dirs(".")
+
+final_data <- read.csv("./tables/blups.csv")
+```
+
+```{r}
+##trial
+#pivot
+final_data1 <- pivot_longer(final_data, cols = colnames(final_data)[2:length(final_data)], names_to = "trait", values_to = "value")
+
+#separate
+final_data2 <- separate(final_data1, col = "trait", into = c("leaflet", "trait"), sep="_")
+
+#rename for grouping
+final_data2$leaflet[final_data2$leaflet == "l"] <- "left"
+final_data2$leaflet[final_data2$leaflet == "t"] <- "terminal"
+final_data2$leaflet[final_data2$leaflet == "r"] <- "right"
+
+#units in cm
+cm_trait <- final_data2 %>% filter(trait %in% c("length", "width", "perimeter"))
+
+##reorder to left, terminal, right
+cm_trait$leaflet <- factor(cm_trait$leaflet, levels = c("left",  "terminal", "right"))
+
+##reorder the traits
+cm_trait$trait <- factor(cm_trait$trait, levels = c("width", "length", "perimeter"))
+
+cm  <- ggplot(cm_trait, aes(x = trait, y = value, fill = leaflet )) +
+  geom_boxplot() + 
+  labs(x = "", y = "cm") +
+  scale_fill_brewer()+
+  theme_classic()+
+  theme(text = element_text(size = 12, family = "serif")) +
+  facet_wrap( ~trait, ncol = 3, scales = "free") + theme(strip.text.x = element_blank())
+
+
+```
+
+```{r}
+#extract area traits
+cm2_trait <- final_data2 %>% filter(trait == c("area"))
+
+#reorder
+cm2_trait$leaflet <- factor(cm2_trait$leaflet, levels = c("left", "terminal", "right"))
+
+
+cm2 <- ggplot(cm2_trait, aes(x = trait, y = value, fill = leaflet )) +
+  geom_boxplot() + 
+  labs(x = "", y = "cm^2") +
+  scale_fill_brewer()+
+  theme_classic()+
+  theme(text = element_text(size = 12, family = "serif"))
+```
+
+```{r}
+angle_trait <- final_data2 %>% filter(trait %in% c("apex", "base" ))
+
+#reorder
+angle_trait$leaflet <- factor(angle_trait$leaflet, levels = c("left", "terminal", "right"))
+
+angle <- ggplot(angle_trait, aes(x = trait, y = value, fill = leaflet )) +
+  geom_boxplot() + 
+  labs(x = "Trait", y = "angle(^o)") +
+  scale_fill_brewer()+
+  theme_classic()+
+  theme(text = element_text(size = 12, family = "serif"))
+```
+
+
+```{r}
+#combine the boxplots
+fig <- ggarrange(cm, cm2, angle, labels = c("A", "B", "C"), nrow = 3, ncol = 1, common.legend = TRUE, font.label = list(size=12) )
+
+```
+
+
+```{r}
+
+#combine the figures above for blups exploration and correlations
+
+#pearson correlation in R
+
+cor.plot <- ggcorrplot(cor(final_data[, 2:length(final_data)]), hc.order =TRUE, 
+           type ="lower", lab =TRUE, lab_size = 4, tl.cex = 12) + 
+  scale_fill_gradient2(low = "white", high="#0072B2",                     breaks=c(-0.1,1), limit=c(-0.1,1))
+
+
+
+plot.list <- list(fig, cor.plot)
+               
+tiff(filename = "./figures/fig3_4_blups_corr.tiff", width = 14, height = 7, units = "in", res = 300)
+ggarrange(plotlist = plot.list,  labels = c("Trait Distribution", "Trait Correlation"), font.label = list(size = 12))
+x = c(0.5, 0.5, 0.5,0,0.5,1)
+y = c(0, 0.5, 1, 0,0,0)
+id = c(1,1,1,2,2,2)
+grid.polygon(x,y,id)
+dev.off()
+```
+
+

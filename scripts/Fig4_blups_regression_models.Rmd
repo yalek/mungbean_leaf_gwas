@@ -1,0 +1,1153 @@
+---
+title: "trait_regression"
+author: "chiteri"
+date: "5/15/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+## R Markdown
+##libraries
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+library(ggpubr)
+```
+
+##check working directory and read data
+```{r}
+getwd()
+#list.dirs(".")
+
+final_data <- read.csv("./tables/blups.csv") 
+
+lobed <- c("PI377261", "PI377286", "PI377287", "PI377342")
+
+##filter out the lobed files
+`%!in%` <- Negate(`%in%`) #negate function
+
+final_data <- filter(final_data, line %!in% lobed ) #remove the lobed files
+
+##add columns indicating summation 
+final_data$l_l_w <- final_data$l_length + final_data$l_width
+final_data$t_l_w <- final_data$t_length + final_data$t_width
+final_data$r_l_w <- final_data$r_length + final_data$r_width
+
+###add columns of length*width (multiplication)
+final_data$l_lw <- final_data$l_length*final_data$l_width
+final_data$t_lw <- final_data$t_length*final_data$t_width
+final_data$r_lw <- final_data$r_length*final_data$r_width
+
+###columns for total _leaflet area
+
+final_data$Tarea <- final_data$l_area + final_data$t_area + final_data$r_area
+
+####dataframe for model parameters
+model_parameters <- data.frame(as.character(0),
+                               as.character(0),
+                               as.numeric(0),
+                               as.numeric(0))
+names(model_parameters) <- c("Leaflet", "model", "R^2/adj.R^2", "RSE")
+```
+
+###regression on area for each leaflet
+############# left #################
+```{r}
+##l_area ~ l_length
+model.length <- lm(l_area ~ l_length, final_data)
+summary(model.length)
+
+###add parameters to the 
+add_to_table <- c("Left", "y=14.25*L-70.62", "0.77", "2.92")
+model_parameters <- rbind(model_parameters, add_to_table)
+##main graph
+a <- ggplot(final_data, aes(l_length, l_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 7.7,  y=70 , label ="y = 14.25*L-70.62" ) +
+  stat_regline_equation(label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "l_length")
+# ggplot(final_data, aes(sample = l_length)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.length$fitted.values, y = model.length$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_length <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_length.tiff", left_length, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##l_area ~ l_width
+model.width <- lm(l_area ~ l_width, final_data)
+summary(model.width)
+
+add_to_table <- c("Left", "y=11.69*W-37.06", "0.95", "1.41")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+a <- ggplot(final_data, aes(l_width, l_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 6.5,  y=70 , label ="y = 11.69*W-37.06" ) +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "l_width")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.width$fitted.values, y = model.width$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_width <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+left_width1 <- ggarrange(a, b, c, nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_width.tiff", left_width, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##l_area ~ l_perimeter
+model.perimeter <- lm(l_area ~ l_perimeter, final_data)
+summary(model.perimeter)
+
+add_to_table <- c("Left", "y=3.08P-56.48", "0.96", "1.29")
+model_parameters <- rbind(model_parameters, add_to_table)
+##main graph
+a <- ggplot(final_data, aes(l_perimeter, l_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 31,  y=70 , label ="y = 3.08P-56.48" ) +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "l_perimeter")
+# ggplot(final_data, aes(sample = l_perimeter)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.perimeter$fitted.values, y = model.perimeter$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_perimeter <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_perimeter.tiff", left_perimeter, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+#####using single value from l_length + l_width = l_l_w
+model.l_w <- lm(l_area ~ l_l_w, final_data)
+summary(model.l_w)
+
+###add to model_parameters
+add_to_table <- c("Left", "y=7.04(L+W)-61.93", "0.95", "1.36")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+a <- ggplot(final_data, aes(l_l_w, l_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+ annotate("text", x= 14.45,  y=70 , label ="y = 7.04(L+W)-61.93") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  labs(x = "L + W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "l_l_w")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l_w$fitted.values, y = model.l_w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_l_w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_l+w.tiff", left_l_w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+#no interaction
+##l_area ~ l_length + l_width
+
+model.l__w <- lm(l_area ~ l_length + l_width, final_data)
+summary(model.l__w)
+
+###add to model_parameters
+add_to_table <- c("Left", "y=3.77*L+9.39*W-51.76", "0.96", "1.16")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+#to visualize you have to pivot the data
+final_data_l_w <- final_data %>% select(line, l_length, l_width, l_area) %>% pivot_longer(cols = c(l_length, l_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_l_w, aes(x = value, y = l_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x =6.7 , y=70 , label = "y = 3.77*L+9.39*W-51.76" , size = 4) +
+  annotate("text", x =6.5 , y=60 , label = "adj. R^2 = 0.97" , size = 4) 
+  
+ 
+##qqplot
+b <- ggqqplot(final_data_l_w, "value")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l__w$fitted.values, y = model.l__w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_l__w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_l++w.tiff", left_l__w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+#####using single value from l_length * l_width = l_lw
+##l_area ~ l_length*l_width
+
+model.l.w <- lm(l_area ~ l_lw, final_data)
+summary(model.l.w)
+
+###add to model_parameters
+add_to_table <- c("Left", "y=0.89(L*W)-5.84", "0.96", "1.27")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+a <- ggplot(final_data, aes(l_lw, l_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 51,  y=70 , label="y = 0.89(L*W)-5.84") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  labs(x = "L * W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "l_lw")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l.w$fitted.values, y = model.l.w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_l.w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_lxW.tiff", left_l.w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##with interactions
+model.l..w <- lm(l_area ~ l_length * l_width, final_data)
+summary(model.l..w)
+
+###add to model_parameters
+add_to_table <- c("Left", "y=44.90-7.83*L-3.62*W+1.56*L*W", "0.97", "1.10")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+#with interaction
+#to plot both predictors, length and width, we need to 
+final_data_l.w <- final_data %>% select(line, l_length, l_width, l_area) %>% pivot_longer(cols = c(l_length, l_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_l.w, aes(x = value, y = l_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x= 7,  y=70 , label="y = 44.90-7.83*L-3.62*W+1.56*L*W") +
+  annotate("text", x =6.5 , y=60 , label = "adj. R^2 = 0.97" , size = 4) 
+  
+##qqplot
+b <- ggqqplot(final_data_l.w, "value")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l..w$fitted.values, y = model.l..w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+left_l..w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+left_l..w1 <- ggarrange(a, b, c, nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/left_lxxW.tiff", left_l..w, width = 7, height = 3, device='tiff', dpi=300)
+
+```
+
+
+
+```{r}
+##combine all from left side
+left_models <- ggarrange(left_length, 
+                         left_width, 
+                         left_perimeter, 
+                         left_l_w, 
+                         left_l__w , 
+                         left_l.w, 
+                         left_l..w,
+                         nrow = 7, ncol = 1)
+ggsave("./figures/combined/left_models.tiff", left_models, width = 15, height = 15, device='tiff', dpi=300)
+```
+
+
+
+
+################## terminal #############
+```{r}
+##t_area ~ t_length
+model.length <- lm(t_area ~ t_length, final_data)
+summary(model.length)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=13.46*L-68.08", "0.72", "3.21")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+##main graph
+a <- ggplot(final_data, aes(t_length, t_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 7.8,  y=70 , label="y = 13.46*L-68.08") +
+  stat_regline_equation(label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "t_length")
+# ggplot(final_data, aes(sample = l_length)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.length$fitted.values, y = model.length$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_length <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_length.tiff", terminal_length, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##t_area ~ t_width
+model.width <- lm(t_area ~ t_width, final_data)
+summary(model.width)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=9.80*W-31.80", "0.94", "1.50")
+model_parameters <- rbind(model_parameters, add_to_table)
+##main graph
+a <- ggplot(final_data, aes(t_width, t_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 6.9,  y=70 , label="y = 9.80*W-31.80") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "t_width")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.width$fitted.values, y = model.width$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_width <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+terminal_width1 <- ggarrange(a, b, c,nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_width.tiff", terminal_width, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##t_area ~ t_perimeter
+model.perimeter <- lm(t_area ~ t_perimeter, final_data)
+summary(model.perimeter)
+
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=3.03*P-55.42", "0.95", "1.35")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+##main graph
+a <- ggplot(final_data, aes(t_perimeter, t_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 30.5,  y=70 , label="y = 3.04*P-55.91") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "t_perimeter")
+# ggplot(final_data, aes(sample = l_perimeter)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.perimeter$fitted.values, y = model.perimeter$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_perimeter <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_perimeter.tiff", terminal_perimeter, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##t_area ~ t_length + t_width - usiong single value summed
+
+model.l_w <- lm(t_area ~ t_l_w, final_data)
+summary(model.l_w)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=6.35(L+W)-58.46", "0.95", "1.37")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+
+a <- ggplot(final_data, aes(t_l_w, t_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 15.1,  y=70 , label="y = 6.35(L+W)-58.46") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+
+  labs(x = "L + W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "t_l_w")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l_w$fitted.values, y = model.l_w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_l_w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_l+w.tiff", terminal_l_w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+#no interaction
+##l_area ~ l_length + l_width
+
+model.t__w <- lm(t_area ~ t_length + t_width, final_data)
+summary(model.t__w)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=3.73*L+7.94*W-48.76", "0.96", "1.21")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+#to visualize you have to pivot the data
+final_data_t_w <- final_data %>% select(line, t_length, t_width, t_area) %>% pivot_longer(cols = c(t_length, t_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_t_w, aes(x = value, y = t_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x =7.2 , y=70 , label = "y = 3.73*L+7.94*W-48.76", size = 4) +
+  annotate("text", x =7.0 , y=60 , label = "adj. R^2 = 0.96" , size = 4) 
+
+##qqplot
+b <- ggqqplot(final_data_t_w, "value")
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.t__w$fitted.values, y = model.t__w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_t__w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_l++w.tiff", terminal_t__w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##singular value of length*width
+##l_area ~ l_length*l_width
+
+model.l.w <- lm(t_area ~ t_lw, final_data)
+summary(model.l.w)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=0.76(L*W)L-5.26", "0.96", "1.28")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+
+a <- ggplot(final_data, aes(t_lw, t_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 57,  y=70 , label="y = 0.76(L*W)L-5.26" )+
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+ labs(x = "L * W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "t_lw")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l.w$fitted.values, y = model.l.w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_l.w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_lxW.tiff", terminal_l.w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##with interaction
+model.t..w <- lm(t_area ~ t_length * t_width, final_data)
+summary(model.t..w)
+
+###add to model_parameters
+add_to_table <- c("terminal", "y=69.85-10.08*L-6.78*W+1.71*L*W", "0.97", "1.10")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+#with interaction
+#to plot both predictors, length and width, we need to 
+final_data_t.w <- final_data %>% select(line, t_length, t_width, t_area) %>% pivot_longer(cols = c(t_length, t_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_t.w, aes(x = value, y = t_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x =7.7 , y=70 , label = "y = 69.85-10.08*L-6.78*W+1.71*L*W" , size = 4) +
+  annotate("text", x =7.0 , y=60 , label = "adj. R^2 = 0.97" , size = 4) 
+  
+##qqplot
+b <- ggqqplot(final_data_t.w, "value")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.t..w$fitted.values, y = model.t..w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+terminal_t..w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+terminal_t..w1 <- ggarrange(a, b, c, nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/terminal_lxxW.tiff", terminal_t..w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##combine all from left side
+terminal_models <- ggarrange(terminal_length, 
+                             terminal_width,
+                             terminal_perimeter,
+                             terminal_l_w, 
+                             terminal_t__w,
+                             terminal_l.w, 
+                             terminal_t..w,
+                         nrow = 7, ncol = 1)
+ggsave("./figures/combined/terminal_models.tiff", terminal_models, width = 15, height = 15, device='tiff', dpi=300)
+
+
+```
+
+
+
+
+############## right leaflet ############
+```{r}
+##r_area ~ r_length
+model.length <- lm(r_area ~ r_length, final_data)
+summary(model.length)
+
+
+###add to model_parameters
+add_to_table <- c("right", "y=13.64*L-65.31", "0.76", "2.97")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+##main graph
+a <- ggplot(final_data, aes(r_length, r_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 7.4,  y=70 , label="y = 13.64*L-65.31") +
+  stat_regline_equation(label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "r_length")
+# ggplot(final_data, aes(sample = l_length)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.length$fitted.values, y = model.length$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_length <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_length.tiff", right_length, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##r_area ~ r_width
+model.width <- lm(r_area ~ r_width, final_data)
+summary(model.width)
+
+###add to model_parameters
+add_to_table <- c("right", "y=11.72*W-36.91", "0.95", "1.31")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+a <- ggplot(final_data, aes(r_width, r_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 6.6,  y=70 , label="y = 11.72*W-36.91") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "r_width")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.width$fitted.values, y = model.width$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_width <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+right_width1 <- ggarrange(a, b, c, nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_width.tiff", right_width, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##r_area ~ r_perimeter
+model.perimeter <- lm(r_area ~ r_perimeter, final_data)
+summary(model.perimeter)
+
+
+###add to model_parameters
+add_to_table <- c("right", "y=3.07*P-56.65", "0.95", "1.32")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+##main graph
+a <- ggplot(final_data, aes(r_perimeter, r_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 31,  y=70 , label="y = 3.07*P-56.65") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "r_perimeter")
+# ggplot(final_data, aes(sample = l_perimeter)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.perimeter$fitted.values, y = model.perimeter$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_perimeter <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_perimeter.tiff", right_perimeter, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##singular value of length + width
+##r_area ~ r_length + r_width
+
+model.l_w <- lm(r_area ~ r_l_w, final_data)
+summary(model.l_w)
+
+
+###add to model_parameters
+add_to_table <- c("right", "y=6.92(L+W)-59.78", "0.95", "1.36")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+
+a <- ggplot(final_data, aes(r_l_w, r_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 14,  y=70 , label="y = 6.92(L+W)-59.78") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  labs(x = "L + W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "r_l_w")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l_w$fitted.values, y = model.l_w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_l_w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_l+w.tiff", right_l_w, width = 7, height = 3, device='tiff', dpi=300)
+```
+```{r}
+###no interaction
+model.r__w <- lm(r_area ~ r_length + r_width, final_data)
+summary(model.r__w)
+
+###add to model_parameters
+add_to_table <- c("right", "y=3.36*L+9.59*W-49.49", "0.97", "1.08")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+#to visualize you have to pivot the data
+final_data_r_w <- final_data %>% select(line, r_length, r_width, r_area) %>% pivot_longer(cols = c(r_length, r_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_r_w, aes(x = value, y = r_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x =7 , y=70 , label = "y = 3.36*L+9.59*W-49.49" , size = 4) +
+  annotate("text", x =6.6 , y=60 , label = "adj. R^2 = 0.97" , size = 4) 
+
+##qqplot
+b <- ggqqplot(final_data_r_w, "value")
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.r__w$fitted.values, y = model.r__w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_l__w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_l++w.tiff", right_l__w, width = 7, height = 3, device='tiff', dpi=300)
+
+```
+
+
+
+
+```{r}
+#single value of length*width
+##r_area ~ r_length*r_width
+
+model.l.w <- lm(r_area ~ r_lw, final_data)
+summary(model.l.w)
+
+###add to model_parameters
+add_to_table <- c("right", "y=0.86(L*W)-4.31", "0.96", "1.26")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+##main graph
+#Note the x here means L*W
+
+a <- ggplot(final_data, aes(r_lw, r_area)) + 
+  geom_point() + 
+  stat_smooth(method = lm, fill = "grey") +
+  annotate("text", x= 50,  y=70 , label="y = 0.86(L*W)-4.31") +
+  stat_regline_equation( label.y = 64, aes(label = ..rr.label..)) +
+  labs(x = "L * W") +
+  theme_classic()
+
+##qqplot
+b <- ggqqplot(final_data, "r_lw")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.l.w$fitted.values, y = model.l.w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_l.w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_lxW.tiff", right_l.w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+```{r}
+##with interaction
+model.r..w <- lm(r_area ~ r_length * r_width, final_data)
+summary(model.r..w)
+
+###add to model_parameters
+add_to_table <- c("right", "y=33.44-6.53*L-1.47*W+1.32*L*W", "0.97", "1.02")
+model_parameters <- rbind(model_parameters, add_to_table)
+
+
+#with interaction
+#to plot both predictors, length and width, we need to 
+final_data_r.w <- final_data %>% select(line, r_length, r_width, r_area) %>% pivot_longer(cols = c(r_length, r_width ), names_to = "trait", values_to = "value" )
+
+a <- ggplot(final_data_r.w, aes(x = value, y = r_area, color = trait)) + 
+  geom_point()  + 
+  scale_color_manual(values=c("#bdbdbd", "#636363")) +
+  theme_classic() +
+  theme(legend.position = 'top', legend.direction = "horizontal") +
+  annotate("text", x =7.5 , y=70 , label = "y = 33.44-6.53*L-1.47*W+1.32*L*W" , size = 4) +
+  annotate("text", x =6.6 , y=60 , label = "adj. R^2 = 0.97" , size = 4) 
+  
+##qqplot
+b <- ggqqplot(final_data_r.w, "value")
+# ggplot(final_data, aes(sample = l_width)) + 
+#   stat_qq() + 
+#   theme_classic()
+
+##residuals
+c <- ggplot( data=NULL,aes(x= model.r..w$fitted.values, y = model.r..w$residuals)) +
+  geom_point() + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + labs(x = "Fitted values", y = "Residuals")
+
+##combine the three graphs on each leaflet
+
+right_r..w <- ggarrange(a, b, c, labels = c("A", "B", "C"),nrow = 1, ncol = 3)
+right_r..w1 <- ggarrange(a, b, c, nrow = 1, ncol = 3)
+
+#ggsave("./figures/fig5_regression/right_lxxW.tiff", right_r..w, width = 7, height = 3, device='tiff', dpi=300)
+```
+
+
+```{r}
+##combine all from left side
+right_models <- ggarrange(right_length, 
+                          right_width, 
+                          right_perimeter, 
+                          right_l_w,
+                          right_l__w,
+                          right_l.w, 
+                          right_r..w,
+                         nrow = 7, ncol = 1)
+ggsave("./figures/combined/right_models.tiff", right_models, width = 15, height = 15, device='tiff', dpi=300)
+```
+
+
+############ combined #############
+
+```{r}
+###final image with the best out of all the
+##based on R^2
+
+all_leaftlets_models <- ggarrange(left_models, terminal_models , right_models,
+                                  labels = c("left", "terminal", "right"),
+                                  nrow = 1, ncol = 3, hjust = -7 )
+ggsave("./figures/combined/all_leaflets_models.tiff", all_leaftlets_models, width = 35, height = 15, device='tiff', dpi=300)
+
+
+###only top models from each category
+##ones with L*W
+all_top_models <- ggarrange(left_l..w, terminal_t..w, right_r..w, 
+                         nrow = 3, ncol = 1, 
+                         labels = c("left leaflet", "terminal leaflet", "right leaflet"))
+
+ggsave("./figures/combined/_all_top_models.tiff", all_top_models, width = 14, height = 7, device='tiff', dpi=300)
+
+
+
+##using width of a leaf
+all_width_models <- ggarrange(left_width, terminal_width, right_width, 
+                         nrow = 3, ncol = 1,
+                                            labels = c("left leaflet", "terminal leaflet", "right leaflet"), hjust = -2)
+
+ggsave("./figures/combined/_all_width_models.tiff", all_width_models, width = 14, height = 7, device='tiff', dpi=300)
+
+
+```
+
+```{r}
+##combine top models vs width models into one graph
+###only top models from each category
+##ones with L*W
+all_top_models1 <- ggarrange(left_l..w1, terminal_t..w1, right_r..w1, 
+                         nrow = 3, ncol = 1)
+
+#labels = c("left leaflet", "terminal leaflet", "right leaflet")
+
+##using width of a leaf
+all_width_models1 <- ggarrange(left_width1, terminal_width1, right_width1, 
+                         nrow = 3, ncol = 1)
+
+
+
+#graphing
+plot.list <- list(all_top_models1, all_width_models1)
+
+
+library(grid)
+
+tiff(filename = "./figures/fig5_top&width.tiff", width = 28, height = 7, units = "in", res = 300)
+ggarrange(plotlist = plot.list,  labels = c("A", "B"), font.label = list(size = 12))
+x = c(0.5, 0.5, 0.5,0,0.5,1)
+y = c(0, 0.5, 1, 0,0,0)
+id = c(1,1,1,2,2,2)
+grid.polygon(x,y,id)
+dev.off()
+
+```
+
+
+
+
+
+```{r}
+###save the table with all the models
+
+
+
+model_parameters <- model_parameters[-1, ]
+
+write.csv(model_parameters,"./tables/model_parameters.csv", row.names = F)
+
+#model_parameters$`R^2/adj.R^2` <- as.numeric(model_parameters$`R^2/adj.R^2`)
+
+##left
+left_df <- model_parameters %>% 
+  filter(Leaflet == "Left") %>%  
+  mutate(model = fct_reorder(model, `R^2/adj.R^2`))
+
+model_left <- ggplot(left_df, aes(x = model, y= `R^2/adj.R^2`)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() +
+  labs(x = "left leaflet", y="") +
+  geom_text(aes(label = RSE), hjust=0) +
+  theme_classic()+
+  theme(text = element_text(size = 20, family = "serif"))
+  
+##terminal
+terminal_df <- model_parameters %>% 
+  filter(Leaflet == "terminal") %>%  
+  mutate(model = fct_reorder(model, `R^2/adj.R^2`))
+
+model_terminal <- ggplot(terminal_df, aes(x = model, y= `R^2/adj.R^2`)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() +
+  labs(x = "termianl leaflet", y= "") +
+  geom_text(aes(label = RSE),  hjust=0) +
+  theme_classic()+
+  theme(text = element_text(size = 20, family = "serif"))
+
+##right
+right_df <- model_parameters %>% 
+  filter(Leaflet == "right") %>%  
+  mutate(model = fct_reorder(model, `R^2/adj.R^2`))
+
+model_right <- ggplot(right_df, aes(x = model, y= `R^2/adj.R^2`)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() +
+  labs(x = "right leaflet") +
+  geom_text(aes(label = RSE),  hjust=0) +
+  theme_classic()+
+  theme(text = element_text(size = 20, family = "serif"))
+
+#write.csv(model_parameters[-1,],"./data/processed/leaf_area_models.csv",  row.names = F)
+models <- ggarrange(model_left, 
+                    model_terminal, 
+                    model_right, 
+                    
+                    nrow = 3, ncol=1, common.legend = TRUE)
+  
+  
+#ggsave("./figures/fig5_models_comparison.tiff", models, width = 7, height = 10, device='tiff', dpi=300)
+
+```
+
+
+```{r}
+###regress on trifoliate area
+total_area_parameters <- data.frame(as.character(0),
+                               as.character(0),
+                               as.character(0),
+                               as.numeric(0),
+                               as.numeric(0))
+names(total_area_parameters) <- c("Leaflet","Trait", "model", "R^2/adj.R^2", "RSE")
+
+#Choose simple traits to measure (width and area)
+
+##l_area ~ l_width
+model.TArea_width<- lm(Tarea ~ l_width, final_data)
+summary(model.TArea_width)
+add_to_table2 <- c("left", "width","y= 34.29*W - 105.99", "0.93", "4.75")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+
+model.TArea_width.2<- lm(Tarea ~ t_width, final_data)
+summary(model.TArea_width.2)
+add_to_table2 <- c("terminal", "width","y= 28.57*W - 84.82", "0.91", "5.29")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+
+model.TArea_width.3<- lm(Tarea ~ r_width, final_data)
+summary(model.TArea_width.3)
+add_to_table2 <- c("right","width", "y= 33.98*W - 105.27", "0.93", "4.47")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+####ll_area ~ l_length
+model.TArea_length<- lm(Tarea ~ l_length, final_data)
+summary(model.TArea_length)
+add_to_table2 <- c("left", "length", "y= 41.56*L - 202.15", "0.74", "9.07")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+model.TArea_length2<- lm(Tarea ~ t_length, final_data)
+summary(model.TArea_length2)
+add_to_table2 <- c("terminal", "length", "y= 39.35*L - 191.48", "0.70", "9.75")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+model.TArea_length3<- lm(Tarea ~ r_length, final_data)
+summary(model.TArea_length3)
+add_to_table2 <- c("right","length", "y= 39.71*L - 189.09", "0.75", "8.91")
+total_area_parameters <- rbind(total_area_parameters, add_to_table2)
+
+
+
+#graphing
+total_area_parameters <- total_area_parameters[-1, ]
+
+write.csv(total_area_parameters,"./tables/total_area_model_parameters.csv", row.names = F)
+
+#one graph
+
+
+area_model <- ggplot(total_area_parameters, aes(x = model, y= `R^2/adj.R^2`, fill = Trait)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(Leaflet,",",RSE )), hjust=0 ) +
+  scale_fill_grey()+
+  labs(fill = "Trait, panel B")+
+  coord_flip()+
+  theme_classic()+
+  theme(text = element_text(size = 20, family = "serif"))
+
+
+  
+ggsave("./figures/fig5_models_comparison_for area.tiff", area_model, width = 8, height = 5, device='tiff', dpi=300)
+```
+
+```{r}
+#combined the two graphs
+
+plot.list <- list(models, area_model)
+                    
+tiff(filename = "./figures/fig5_models_all_regression.tiff", width = 20, height = 7, units = "in", res = 300)
+ggarrange(plotlist = plot.list,  labels = c("A", "B"), font.label = list(size = 20))
+x = c(0.5, 0.5, 0.5,0,0.5,1)
+y = c(0, 0.5, 1, 0,0,0)
+id = c(1,1,1,2,2,2)
+grid.polygon(x,y,id)
+dev.off()
+```
+

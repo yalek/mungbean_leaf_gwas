@@ -1,0 +1,320 @@
+---
+title: "GWAS"
+author: "chiteri"
+date: "5/17/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = normalizePath(".."))
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+```{r}
+library(tidyverse)
+library(qqman)
+library(CMplot)
+library(ggpubr)
+```
+
+#because you will need a genotype file (if really need please reach out.)
+#otherwise skip to the manhattan plot sections
+
+###Using Matt's code to subset data and convert our phenotype/blup into tassel preferred format
+```{r}
+subset_geno_pheno = function(SNP_data, pheno_data){
+  
+  geno_list = pheno_data$name[pheno_data$name %in% colnames(SNP_data)]
+  noSNP = pheno_data$name[!(pheno_data$name  %in% colnames(SNP_data))]
+  
+  geno_df = SNP_data %>% select(c(1:11, all_of(geno_list)))
+  
+  Pheno_df = pheno_data %>% filter(name %in% geno_list)
+  
+  my_list = list("SNP_data" = geno_df, "Pheno_data" = Pheno_df, "genos_withSNP" = geno_list, "genos_no_SNP" = noSNP)
+  
+  return(my_list)
+  
+}
+```
+
+#will write pheno and geno data to tassel format from the above functon to a file directory of your choosing. 
+```{r}
+tassel_phenotype = function(pheno_file, base_file_name, genotype_data){
+  n_traits = dim(pheno_file)[2]-1
+  
+  A = c("taxa", rep("data",n_traits))
+  
+  pheno_file_m  = as.matrix(pheno_file)
+  
+  pheno_file1 = rbind(pheno_file_m, colnames(pheno_file))
+  pheno_file1 = rbind(pheno_file1, A)
+  A = c("<Phenotype>",rep("",n_traits))
+  pheno_file1 = rbind(pheno_file1,A)
+  n_rows = dim(pheno_file1)[1]
+
+  pheno_file1 = pheno_file1[c(n_rows,n_rows-1,n_rows-2,1:(n_rows-3)),]
+  
+  pheno_file1[3,1] = "Taxa"
+  
+  write.table(pheno_file1, paste(base_file_name, "_phenotype.txt") , sep = "\t", row.names = FALSE, quote = FALSE, col.names = FALSE )
+  
+  write.table(genotype_data, paste(base_file_name, "_genotype.txt") , sep = "\t", row.names = FALSE, quote = FALSE, col.names = TRUE )
+  
+  
+  geno_order = colnames(genotype_data [,18:ncol(genotype_data)])
+  
+  pheno_order = pheno_file1[4:nrow(pheno_file1),1]
+  pheno_order = unname(pheno_order)
+  
+  my_list = list("pheno_file" = pheno_file1,  "geno_order = Pheno order"= identical(geno_order, pheno_order) , "pheno_order = geno_order" = identical(pheno_order, geno_order))
+  
+  return(my_list)
+
+}
+
+```
+
+#read genotype file
+```{r}
+#you will need to request for genotype file
+#geno_file = read.table("./data/gwas/Tassel.G85.maf01.I498.diploid.hmp.txt", comment.char = "", header = T)
+
+```
+
+
+#read phenotype file- remember the blups
+```{r}
+blups <- read.csv("./tables/blups.csv")
+
+blups1 <- blups %>% mutate(leaftype = rep(1))
+
+###add the leaflet type
+
+##rename the following columns
+blups$line[blups$line=="OK-12"] <- "OK12"
+blups$line[blups$line=="Ok2000"] <- "OK2000" 
+blups$line[blups$line=="Commercial_check1"] <- "CommChk1"
+blups$line[blups$line=="Commercial_check2"] <- "CommChk2"
+
+```
+
+########## reassign
+```{r}
+#pheno_file == BLUPS
+pheno_file = blups
+
+A = colnames(pheno_file)
+A[1] = "name"
+colnames(pheno_file) = A
+colnames(pheno_file)
+```
+
+
+
+subsetting your genotype and phenotype file
+
+```{r}
+data_subset = subset_geno_pheno(SNP_data = geno_file, pheno_data = pheno_file)
+```
+
+#View
+```{r}
+data_subset$SNP_data
+data_subset$Pheno_data
+data_subset$genos_withSNP
+data_subset$genos_no_SNP
+```
+
+##Format for tassel
+
+```{r}
+tassel_data = tassel_phenotype(pheno_file = data_subset$Pheno_data, "./data/gwas/leaf_blup_tassel", genotype_data = data_subset$SNP_data)
+
+tassel_data$pheno_file
+tassel_data$`geno_order = Pheno order`
+tassel_data$`pheno_order = geno_order`
+```
+
+####Once you have this tassel format.
+#Go into tassel and do the analysis
+
+#here
+
+
+###manhattan and qqplots
+##for each individual leaflet trait
+
+```{r}
+tassel_results = read.table("./tables/MLM_statistics_for_leaf_traits.txt", header = TRUE, sep = "\t")
+
+Traits = unique(tassel_results$Trait)
+
+###############
+
+
+for( i in Traits ){
+  
+  trait <- tassel_results%>% filter(Trait == i) %>% drop_na(Chr)
+  
+  tiff(paste0("./figures/tassel/man_qq_", i, ".tiff"), 
+         width = 17, height = 5, units = "in", res = 300)
+  
+  par(mfrow = c(1, 2))
+  
+  manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker", col=c("blue","brown"),
+            cex=0.8 ,ylim=c(0,8), main =i, genomewideline =  F, 
+            highlight = snpsOfInterest) #manhattan plots
+
+  qq(trait$p) #qqplots
+  #+ title(i)
+  dev.off()
+  
+
+}
+```
+##for each individual leaflet with all trait
+
+```{r}
+###automating for each leaflet
+#getwd()
+
+tassel_results = read.table("./tables/MLM_statistics_for_leaf_traits.txt", header = TRUE, sep = "\t")
+
+
+##subset datasets
+left_traits <- tassel_results %>% filter(grepl("l_", Trait)) %>% drop_na(Chr)
+terminal_traits <- tassel_results %>% filter(grepl("t_", Trait)) %>% drop_na(Chr)
+right_traits <- tassel_results %>% filter(grepl("r_", Trait)) %>% drop_na(Chr)
+leaf_type <- tassel_results %>% filter(grepl("leaf_type", Trait)) %>% drop_na(Chr)
+
+##create a list for the datasets
+dfs <- list(left = left_traits, 
+            terminal = terminal_traits, 
+            right = right_traits, 
+            type = leaf_type)
+
+#names(dfs)
+#dfs[1]
+#xx <- dfs[[1]]
+#length(dfs)
+#print(dfs)
+
+
+#dfs[[1]]
+#nd <- dfs[[1]]
+#d = 1
+
+for(d in 1:length(dfs)) {
+  
+  current_df <- dfs[[d]]
+  current_df_name <- names(dfs)[d]
+  
+  #print(names(dfs)[4])
+  
+  if(current_df_name == names(dfs)[4]){
+        
+    i <- unique(current_df$Trait)
+    
+    tiff(paste0("./figures/tassel/combined/man_qq_",
+         current_df_name,".tiff"), 
+         width = 17, height = 5, units = "in", res = 300)
+      ##grid
+      #use length of Traits
+      par(mfrow = c(1,2),mar = c(5.1,5.1,1,1), 
+          cex.lab = 1.5, cex.main = 1.5, cex.axis = 1.5)
+      manhattan(current_df, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),
+              cex=0.8 ,ylim=c(0,8), main =i, genomewideline =  F,
+              highlight = snpsOfInterest) #manhattan plots
+      qq(current_df$p)
+      dev.off()
+    
+    
+    ###############
+   # print("I passed here")
+    
+
+    }
+   else {
+    #print("I skipped to here")
+    
+    Traits <- unique(current_df$Trait)
+    
+    tiff(paste0("./figures/tassel/combined/man_qq_",current_df_name,".tiff"), 
+         width = 17, height = 15, units = "in", res = 300)
+    
+    par(mfrow = c(6,2), mar = c(5.1,5.1,1,1), cex = 1)
+  
+    #trait 1
+    trait <- current_df %>% filter(Trait == Traits[1])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[1],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$p, xlab = "") #qqplots 
+    
+    #trait 2
+    trait <- current_df %>% filter(Trait == Traits[2])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[2],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$p, xlab = "") #qqplots    
+    
+    
+    #trait 3
+    trait <- current_df %>% filter(Trait == Traits[3])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[3],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$p, xlab = "") #qqplots       
+    
+    #trait 4
+    trait <- current_df %>% filter(Trait == Traits[4])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[4],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$p, xlab = "") #qqplots     
+    
+    #trait 5
+    trait <- current_df %>% filter(Trait == Traits[5])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[5],
+              genomewideline =  F, highlight = snpsOfInterest, xlab = "") #manhattan plots
+
+    qq(trait$p, xlab = "") #qqplots     
+    
+    #trait 6
+    trait <- current_df %>% filter(Trait == Traits[6])
+    manhattan(trait, chr="Chr", bp="Pos", p="p", snp = "Marker",
+              col=c("blue","brown"),cex=0.8 ,ylim=c(0,8), main = Traits[6],
+              genomewideline =  F, highlight = snpsOfInterest) #manhattan plots
+
+    qq(trait$p) #qqplots      
+    
+    dev.off()
+
+  }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
