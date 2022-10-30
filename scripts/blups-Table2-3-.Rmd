@@ -70,7 +70,7 @@ variance_table <- data.frame(grp)
 
 
 ##list of traits
-traits <- colnames(leaf_df)[7:ncol(leaf_df)]
+traits <- colnames(leaf_df)[8:ncol(leaf_df)]
 
 ##loop through the traits
 
