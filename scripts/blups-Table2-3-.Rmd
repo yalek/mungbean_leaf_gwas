@@ -64,13 +64,13 @@ descriptive_stats <- data.frame(character(0),
 colnames(descriptive_stats) <- c("Trait","Mean","Median","Min","Max","SD","CV","H2.cullis")
 
 #create the anova sort of table
-grp <- c("line:year", "line", "loc", "year", "Residual" )
+grp <- c("line", "loc_year", "Residual" )
 variance_table <- data.frame(grp)
 
 
 
 ##list of traits
-traits <- colnames(leaf_df)[8:ncol(leaf_df)]
+traits <- colnames(leaf_df)[9:ncol(leaf_df)]
 
 ##loop through the traits
 
@@ -87,8 +87,8 @@ for(t in 1:length(traits)){
             year.n=2,
             env.name = unique(leaf_df$loc),
             year.name = unique(leaf_df$year),
-            random.model = "1 + (1|loc) + (1|year) + (1|line)",
-            fixed.model = "0 + (1|loc) + (1|year) + line",
+            random.model = "1 + (1|loc_year) + (1|line)",
+            fixed.model = "0 + (1|loc_year) + line",
             emmeans = FALSE,
             plot_diag = FALSE,
             outliers.rm = TRUE)
@@ -132,7 +132,7 @@ for(t in 1:length(traits)){
     y1 <- y[, c(1,4)] %>% mutate_if(is.numeric, ~round(., 2))
     y1$percent <- (y1[,2]/ sum(y1$vcov)*100)  #new column with %
 
-    y1$percent <- round(y1$percent, 0) #round off to o d.p.
+    y1$percent <- round(y1$percent, 1) #round off to o d.p.
 
     names(y1)[2]<-paste0(trait,"_var")
     
@@ -149,10 +149,9 @@ variance_table[nrow(variance_table) + 1, ] <- c(a = "Totals", as.list(row_totals
 
 #save
 write.csv(final_data,"./tables/blups.csv" , row.names = F)
-write.csv( descriptive_stats, "./tables/summary_table_2.csv", row.names = F)
-write.csv(variance_table, "./tables/variance_table_table_3.csv", row.names = F)
+write.csv( descriptive_stats, "./tables/summary.csv", row.names = F)
+write.csv(variance_table, "./tables/variance_table.csv", row.names = F)
 
 end_time <- Sys.time()
 print(paste0("This code took long: ", end_time-start_time))
 ```
-
