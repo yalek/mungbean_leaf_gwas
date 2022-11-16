@@ -1,0 +1,91 @@
+---
+title: "Figure S3"
+author: "chiteri"
+date: "11/16/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = normalizePath(".."))
+knitr::opts_knit$set(root.dir = normalizePath("..")) #set working directory for all code chunks
+```
+
+#gives you data frames that have genotype data based on the phenotype data provided.
+#can use for input into tassel
+
+```{r}
+library(tidyverse)
+library(qqman)
+library(CMplot)
+library(ggpubr)
+```
+
+##########################random sampling 2% have 5 times...############
+
+```{r}
+#We want to random resample 196 to make sure we still have 2%
+#You will need the genotype information to run this.
+#create the five folders
+#
+current <- getwd()
+
+#read genotype data-formatted to allow random sampling
+myGm1 <- read.table("./data/gwas/leaf_blup_tassel _genotype.txt", header = F)
+colnames(myGm1) <- myGm1[1,]
+myGm1 <- myGm1[-1,]
+
+
+##lobed vs ovate _ extract the populations
+
+lobed <- myYm %>% filter( leaftype == '0') #4
+ovate <- myYm %>% filter( leaftype == '1') #454
+
+#4/200 - 0.02- 2%
+#phenotype
+ovate_200 <- sample_n(ovate, 196, replace = F)
+myYm_200 <- rbind(ovate_200, lobed)
+
+#genotype
+myGm_200 <-  myGm1[,names(myGm1) %in% myYm_200$Taxa]
+myGm_200 <- cbind(myGm1[,1:11], myGm_200)
+
+row1 <- names(myGm_200)
+names(myGm_200) <- NULL
+myGm_200 <- rbind(row1,myGm_200)
+
+
+
+for(i in 1:5){
+  #set up folder
+  
+  setwd(paste0(current, "/figures/gwas/gwas_85_0.01/gapit/random_200/", i,"/"))
+  #i is a folder
+  
+  #step 1 subset the phenotype and genotype
+  #4/200 - 0.02- 2%
+  #phenotype
+  ovate_200 <- sample_n(ovate, 196, replace = T)
+  
+  myYm_200 <- rbind(ovate_200, lobed)
+
+  #genotype
+  myGm_200 <-  myGm1[,names(myGm1) %in% myYm_200$Taxa]
+  myGm_200 <- cbind(myGm1[,1:11], myGm_200)
+
+  row1 <- names(myGm_200)
+  names(myGm_200) <- NULL
+  myGm_200 <- rbind(row1,myGm_200)
+  
+  #Step 2: Run GAPIT
+  myGAPIT <- GAPIT(
+  Y=myYm_200[, c(1,ncol(myYm_200))],
+  G=myGm_200,
+  PCA.total = 4,
+  cutOff = 0.05,
+  model = "FarmCPU"
+)
+  
+}
+
+```
